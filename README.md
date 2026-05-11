@@ -1,8 +1,8 @@
 # Meeting Extractor
 
-Record any meeting — Zoom, browser, or any app — then automatically transcribe it with speaker labels, translate between English and Mandarin Chinese, and generate an AI-powered summary with a structured key-points outline.
+Record any meeting (Zoom, browser, or any app), then automatically transcribe it with speaker labels, translate between English and Mandarin Chinese, and generate an AI-powered summary with a structured key-points outline.
 
-Powered by [OpenAI Whisper](https://github.com/openai/whisper), [pyannote.audio](https://github.com/pyannote/pyannote-audio), and a configurable LLM (Claude or Qwen via DashScope). Includes both a GUI and a full CLI. Runs locally on Windows.
+Powered by [OpenAI Whisper](https://github.com/openai/whisper), [pyannote.audio](https://github.com/pyannote/pyannote-audio), and a configurable LLM (e.g., Claude). Includes both a GUI and a full CLI. Runs locally on Windows.
 
 ---
 
