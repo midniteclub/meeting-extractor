@@ -8,22 +8,22 @@ Powered by [OpenAI Whisper](https://github.com/openai/whisper), [pyannote.audio]
 
 ## Features
 
-- **Screen + audio recording** — captures what plays through your speakers (WASAPI loopback), works with any app including Zoom, Teams, and browser-based meetings. Optional screen video capture.
-- **Transcription** — local, offline transcription via OpenAI Whisper. No audio ever leaves your machine.
-- **Speaker identification** — labels each line by who is speaking (Speaker 1, Speaker 2, etc.) via pyannote.audio. Optional — requires a free HuggingFace token.
-- **Translation** — auto-detects English or Mandarin Chinese and translates to the other language. Both the original and translated transcripts are saved.
-- **AI summary** — generates a structured key-points outline, a full prose summary, and a list of action items / decisions. Uses Claude or Qwen (DashScope) if an API key is configured, otherwise falls back to simple extractive summarization.
-- **Reports** — saves a human-readable `.txt` report and a machine-readable `.json` file to the `outputs/` folder after every session.
-- **Multi-monitor support** — choose which monitor to record from a dropdown in the GUI.
-- **GUI + CLI** — use the desktop app for day-to-day use, or automate with the command line.
+- **Screen + audio recording:** captures what plays through your speakers (WASAPI loopback), works with any app including Zoom, Teams, and browser-based meetings. Optional screen video capture.
+- **Transcription:** local, offline transcription via OpenAI Whisper. No audio ever leaves your machine.
+- **Speaker identification:** labels each line by who is speaking (Speaker 1, Speaker 2, etc.) via pyannote.audio. Optional (requires a free HuggingFace token).
+- **Translation:** auto-detects English or Mandarin Chinese and translates to the other language. Both the original and translated transcripts are saved.
+- **AI summary:** generates a structured key-points outline, a full prose summary, and a list of action items / decisions. Uses Claude or Qwen (DashScope) if an API key is configured, otherwise falls back to simple extractive summarization.
+- **Reports:** saves a human-readable `.txt` report and a machine-readable `.json` file to the `outputs/` folder after every session.
+- **Multi-monitor support:** choose which monitor to record from a dropdown in the GUI.
+- **GUI + CLI:** use the desktop app for day-to-day use, or automate with the command line.
 
 ---
 
 ## Requirements
 
-- **Python 3.10+** — [python.org](https://www.python.org/downloads/)
-- **Windows 10/11** — audio capture uses the Windows WASAPI loopback API
-- **~2 GB disk space** — for Python packages and the default Whisper model
+- **Python 3.10+:** [python.org](https://www.python.org/downloads/)
+- **Windows 10/11:** audio capture uses the Windows WASAPI loopback API
+- **~2 GB disk space:** for Python packages and the default Whisper model
 
 ---
 
@@ -58,10 +58,10 @@ Copy the example env file and fill in your keys:
 copy .env.example .env
 ```
 
-Then open `.env` in any text editor. All keys are optional — the app works without any of them, but features degrade gracefully:
+Then open `.env` in any text editor. All keys are optional (the app works without any of them), but features degrade gracefully:
 
 ```env
-# LLM API key — used for AI-powered summaries
+# LLM API key: used for AI-powered summaries
 # For Claude:  https://console.anthropic.com
 # For Qwen:    your DashScope API key
 ANTHROPIC_API_KEY=your_api_key_here
@@ -69,12 +69,12 @@ ANTHROPIC_API_KEY=your_api_key_here
 # Only needed when using a non-Anthropic endpoint (e.g. DashScope)
 ANTHROPIC_BASE_URL=https://dashscope.aliyuncs.com/apps/anthropic
 
-# Model name — change this to match your provider
+# Model name (change this to match your provider)
 # Claude default:  claude-sonnet-4-6
 # Qwen example:    qwen3.5-plus
 ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6
 
-# HuggingFace token — used for speaker identification
+# HuggingFace token: used for speaker identification
 # 1. Create a free account at https://huggingface.co
 # 2. Accept the model terms at https://huggingface.co/pyannote/speaker-diarization-3.1
 # 3. Generate a token at https://huggingface.co/settings/tokens
@@ -101,11 +101,11 @@ python main.py
 
 Opens the desktop app. Controls:
 
-- **Start Recording** — begins capturing system audio (and screen if enabled). Click again to stop and automatically process.
-- **Open File** — process an existing audio or video file without recording.
-- **Options bar** — toggle video recording, speaker identification, and translation; set the number of speakers; choose the Whisper model size; select which monitor to record.
-- **Tabs** — results appear in three tabs: *Transcript*, *Translation*, and *Summary & Key Points*.
-- **Open outputs folder** — opens the folder where all reports are saved.
+- **Start Recording:** begins capturing system audio (and screen if enabled). Click again to stop and automatically process.
+- **Open File:** process an existing audio or video file without recording.
+- **Options bar:** toggle video recording, speaker identification, and translation; set the number of speakers; choose the Whisper model size; select which monitor to record.
+- **Tabs:** results appear in three tabs: *Transcript*, *Translation*, and *Summary & Key Points*.
+- **Open outputs folder:** opens the folder where all reports are saved.
 
 ---
 
@@ -163,11 +163,11 @@ python main.py --process file2.wav --speakers 3
 
 | Model | Download size | RAM needed | Speed | Accuracy |
 |---|---|---|---|---|
-| `tiny` | 75 MB | ~1 GB | Fastest | Lower — struggles with accents and Mandarin |
+| `tiny` | 75 MB | ~1 GB | Fastest | Lower - struggles with accents and Mandarin |
 | `base` | 145 MB | ~1 GB | Fast | Good for clear audio *(default)* |
 | `small` | 460 MB | ~2 GB | ~2x slower | Noticeably better EN/ZH accuracy |
-| `medium` | 1.5 GB | ~5 GB | ~5x slower | Very good — handles accents and background noise |
-| `large` | 3 GB | ~10 GB | ~10x slower | Best accuracy — benefits from a GPU |
+| `medium` | 1.5 GB | ~5 GB | ~5x slower | Very good - handles accents and background noise |
+| `large` | 3 GB | ~10 GB | ~10x slower | Best accuracy - benefits from a GPU |
 
 **Recommendation:** use `small` for everyday recordings, `medium` for noisy or accented audio.
 
@@ -182,7 +182,7 @@ Every processed session saves two files to the `outputs/` folder:
 | File | Contents |
 |---|---|
 | `YYYYMMDD_HHMMSS_report.txt` | Human-readable report: key points outline, summary, action items, full transcript, and translation |
-| `YYYYMMDD_HHMMSS_data.json` | Full structured data — all segments with timestamps, speaker labels, translated text, and summary |
+| `YYYYMMDD_HHMMSS_data.json` | Full structured data: all segments with timestamps, speaker labels, translated text, and summary |
 
 **Example transcript output:**
 ```
@@ -194,7 +194,7 @@ Every processed session saves two files to the `outputs/` folder:
 
 ## How audio capture works
 
-The app uses **WASAPI loopback** to capture everything playing through your speakers or headphones — this includes Zoom calls, browser meetings, videos, and any other app audio. No virtual audio cable or additional software is required.
+The app uses **WASAPI loopback** to capture everything playing through your speakers or headphones; this includes Zoom calls, browser meetings, videos, and any other app audio. No virtual audio cable or additional software is required.
 
 Your microphone is **not** captured by default. If you want to include your own voice, you will need to route your microphone through a virtual audio mixer before recording.
 
@@ -225,4 +225,4 @@ Your microphone is **not** captured by default. If you want to include your own 
 
 ## License
 
-MIT — see [LICENSE](LICENSE) for details.
+MIT - see [LICENSE](LICENSE) for details.
