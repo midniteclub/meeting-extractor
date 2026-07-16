@@ -69,6 +69,34 @@ class Transcriber:
 
         return segments
 
+    def translate_to_english(self, audio_path: Path) -> List[Segment]:
+        """Translate the audio directly to English using Whisper's built-in
+        translate task.
+
+        This runs fully offline (no external translation service) and works for
+        any source language, so it is a reliable fallback when the online
+        translator is rate-limited or unreachable. Returns timestamped English
+        segments; callers align these to the transcription segments by time.
+        """
+        self._ensure_whisper()
+        self.cb("Translating audio to English with Whisper...", 78)
+        result = self._whisper.transcribe(
+            str(audio_path),
+            task="translate",
+            verbose=False,
+        )
+        return [
+            {
+                "start": s["start"],
+                "end": s["end"],
+                "text": s["text"].strip(),
+                "speaker": "Speaker",
+                "language": "en",
+            }
+            for s in result["segments"]
+            if s["text"].strip()
+        ]
+
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------

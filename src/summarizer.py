@@ -18,12 +18,28 @@ class Summarizer:
     # Public API
     # ------------------------------------------------------------------
 
-    def generate(self, segments: List[Dict], language: str = "en") -> Dict[str, str]:
+    def generate(
+        self,
+        segments: List[Dict],
+        language: str = "en",
+        text_field: str = "text",
+    ) -> Dict[str, str]:
+        """Summarize the meeting in `language`.
+
+        `text_field` selects which per-segment text to summarize — use
+        "translated_text" so the summary is built from the language the user
+        actually reads (e.g. the English translation of a Chinese meeting),
+        which keeps the output readable even without an LLM API key.
+        """
         self.cb("Generating summary...", 87)
+
+        def seg_text(seg: Dict) -> str:
+            return seg.get(text_field) or seg.get("text") or ""
+
         transcript = "\n".join(
-            f"[{seg.get('speaker', 'Speaker')}] {seg['text']}"
+            f"[{seg.get('speaker', 'Speaker')}] {seg_text(seg)}"
             for seg in segments
-            if seg.get("text")
+            if seg_text(seg)
         )
         client = self._get_client()
         if client:

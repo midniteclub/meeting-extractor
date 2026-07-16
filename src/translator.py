@@ -88,21 +88,47 @@ class Translator:
             return f"[Translation error: {e}]"
 
     def _translate_long(self, text: str, source: str, target: str) -> str:
-        # Split on sentence boundaries, accumulate chunks below _CHUNK
-        import re
-        sentences = re.split(r"(?<=[.!?。！？])\s+", text)
-        chunks, current = [], ""
-        for s in sentences:
-            if len(current) + len(s) > _CHUNK:
-                if current:
-                    chunks.append(current)
-                current = s
-            else:
-                current += (" " if current else "") + s
-        if current:
-            chunks.append(current)
+        chunks = self._split_chunks(text)
         parts = [
             GoogleTranslator(source=source, target=target).translate(c) or c
             for c in chunks
         ]
         return " ".join(parts)
+
+    @staticmethod
+    def _split_chunks(text: str) -> List[str]:
+        """Break text into <= _CHUNK pieces on sentence boundaries.
+
+        Handles CJK punctuation (。！？) which — unlike English — is NOT
+        followed by a space, so a whitespace-only split would leave a whole
+        Chinese paragraph as a single oversized chunk and fail translation.
+        Any sentence that is itself longer than _CHUNK is hard-wrapped.
+        """
+        import re
+
+        # Keep the delimiter attached to the sentence it ends. Split *after*
+        # any sentence-ending punctuation (optionally trailed by whitespace),
+        # so this works for both space-separated English and run-on Chinese.
+        sentences = re.split(r"(?<=[.!?。！？])\s*", text)
+
+        chunks: List[str] = []
+        current = ""
+        for s in sentences:
+            if not s:
+                continue
+            # A single sentence longer than the limit: hard-wrap it.
+            while len(s) > _CHUNK:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                chunks.append(s[:_CHUNK])
+                s = s[_CHUNK:]
+            if len(current) + len(s) > _CHUNK:
+                if current:
+                    chunks.append(current)
+                current = s
+            else:
+                current += s
+        if current:
+            chunks.append(current)
+        return chunks

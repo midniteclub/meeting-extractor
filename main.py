@@ -25,6 +25,51 @@ from src.report_generator import generate_report
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _normalize_lang(code: str) -> str:
+    """Map a raw language code (Whisper/langdetect/user) to en / zh-CN."""
+    code = (code or "").lower()
+    if code.startswith("zh") or code in ("chinese", "mandarin"):
+        return "zh-CN"
+    if code.startswith("en") or code == "english":
+        return "en"
+    return code
+
+
+def _translation_incomplete(segments: list, threshold: float = 0.25) -> bool:
+    """True if enough segments lack a usable translation to warrant a fallback."""
+    total = failed = 0
+    for seg in segments:
+        if not seg.get("text", "").strip():
+            continue
+        total += 1
+        translated = seg.get("translated_text", "")
+        if not translated.strip() or translated.startswith("[Translation error"):
+            failed += 1
+    return total > 0 and (failed / total) >= threshold
+
+
+def _fill_english_from_whisper(segments: list, eng_segments: list) -> None:
+    """Fill missing/failed English translations by aligning Whisper's
+    translate-task output to each transcription segment by time overlap."""
+    for seg in segments:
+        translated = seg.get("translated_text", "")
+        if translated.strip() and not translated.startswith("[Translation error"):
+            continue  # keep good online translations
+        parts = [
+            (e["start"], e["text"])
+            for e in eng_segments
+            if min(seg["end"], e["end"]) - max(seg["start"], e["start"]) > 0
+        ]
+        if parts:
+            parts.sort()
+            seg["translated_text"] = " ".join(t for _, t in parts)
+            seg["target_language"] = "English"
+
+
+# ---------------------------------------------------------------------------
 # Core pipeline
 # ---------------------------------------------------------------------------
 
@@ -35,9 +80,15 @@ def run_pipeline(
     use_diarization: bool = True,
     num_speakers: int = None,
     use_translation: bool = True,
+    summary_language: str = "en",
     progress_cb=None,
 ) -> dict:
-    """Transcribe → translate → summarize → report.  Returns result dict."""
+    """Transcribe → translate → summarize → report.  Returns result dict.
+
+    `summary_language` is the language the AI summary / key points are written
+    in — i.e. the language *you* read. It defaults to English so a
+    Mandarin meeting still yields an English summary you can understand.
+    """
     if progress_cb is None:
         progress_cb = lambda msg, pct: print(f"[{pct:3d}%] {msg}")
 
@@ -55,26 +106,59 @@ def run_pipeline(
         num_speakers=num_speakers,
     )
 
+    translator = Translator(progress_cb=progress_cb)
+
+    # Source language: trust Whisper's own detection first (it analyzed the
+    # audio directly), and only fall back to text-based detection when Whisper
+    # was unsure. This is more reliable than re-detecting the transcript.
+    source_lang = _normalize_lang(segments[0].get("language", "")) if segments else ""
+    if source_lang not in ("en", "zh-CN"):
+        full_text = " ".join(s["text"] for s in segments)
+        source_lang = translator.detect_language(full_text)
+    progress_cb(f"Detected language: {source_lang}", 68)
+
     # 2. Translate
     translation_info = None
     if use_translation:
-        translator = Translator(progress_cb=progress_cb)
-        full_text = " ".join(s["text"] for s in segments)
-        detected_lang = translator.detect_language(full_text)
-        progress_cb(f"Detected language: {detected_lang}", 68)
+        if source_lang in ("en", "zh-CN", "zh-TW", "zh"):
+            segments, translation_info = translator.translate_segments(segments, source_lang)
 
-        if detected_lang in ("en", "zh-CN", "zh-TW", "zh"):
-            segments, translation_info = translator.translate_segments(segments, detected_lang)
+            # If we translated to English but the online translator failed
+            # (rate limited / unreachable), fall back to Whisper's offline
+            # translate task so the user still gets English.
+            if (
+                translation_info
+                and translation_info.get("target") == "en"
+                and _translation_incomplete(segments)
+            ):
+                progress_cb(
+                    "Online translation unavailable — translating to English with Whisper...",
+                    78,
+                )
+                try:
+                    eng_segments = transcriber.translate_to_english(audio_path)
+                    _fill_english_from_whisper(segments, eng_segments)
+                except Exception as e:
+                    progress_cb(f"Whisper translation fallback failed: {e}", 82)
         else:
-            progress_cb(f"Language '{detected_lang}' not in EN/ZH — translation skipped.", 68)
+            progress_cb(f"Language '{source_lang}' not in EN/ZH — translation skipped.", 68)
 
-    # 3. Summarize
-    detected_lang = segments[0].get("language", "en") if segments else "en"
+    # 3. Summarize — in the language the user reads (default English). When the
+    # meeting was translated into that language, summarize from the translation
+    # so the output is readable even without an LLM API key.
+    out_lang = _normalize_lang(summary_language) or "en"
+    text_field = "text"
+    if (
+        translation_info
+        and translation_info.get("target") == out_lang
+        and source_lang != out_lang
+    ):
+        text_field = "translated_text"
     summarizer = Summarizer(
         anthropic_api_key=config.ANTHROPIC_API_KEY,
         progress_cb=progress_cb,
     )
-    summary = summarizer.generate(segments, detected_lang)
+    summary = summarizer.generate(segments, out_lang, text_field=text_field)
 
     # 4. Report
     progress_cb("Writing report...", 93)
@@ -134,6 +218,7 @@ def _cli_record(args):
         use_diarization=not args.no_diarization,
         num_speakers=args.speakers,
         use_translation=not args.no_translate,
+        summary_language=args.summary_language,
     )
     print(f"\n{Fore.GREEN}Reports saved:{Style.RESET_ALL}")
     for fmt, path in results["output_files"].items():
@@ -162,6 +247,7 @@ def _cli_process(args):
         use_diarization=not args.no_diarization,
         num_speakers=args.speakers,
         use_translation=not args.no_translate,
+        summary_language=args.summary_language,
     )
     print("\nReports saved:")
     for fmt, path in results["output_files"].items():
@@ -192,6 +278,12 @@ def main():
     )
     parser.add_argument("--no-translate", action="store_true", help="Skip translation")
     parser.add_argument("--no-video", action="store_true", help="Audio-only recording")
+    parser.add_argument(
+        "--summary-language",
+        default="en",
+        choices=["en", "zh"],
+        help="Language for the AI summary / key points — the language you read (default: en)",
+    )
 
     args = parser.parse_args()
 

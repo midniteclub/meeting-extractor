@@ -83,6 +83,17 @@ class MeetingExtractorGUI:
             side=tk.LEFT, padx=4
         )
 
+        # Language the AI summary / key points are written in (what you read).
+        self.summary_lang_var = tk.StringVar(value="English")
+        ttk.Label(opt, text="Summary in:").pack(side=tk.LEFT, padx=(6, 1))
+        ttk.Combobox(
+            opt,
+            textvariable=self.summary_lang_var,
+            values=["English", "Chinese"],
+            width=8,
+            state="readonly",
+        ).pack(side=tk.LEFT, padx=(0, 4))
+
         # Model
         mdl = ttk.LabelFrame(ctrl, text="Whisper model", padding=(6, 2))
         mdl.pack(side=tk.LEFT, padx=(0, 10))
@@ -256,6 +267,7 @@ class MeetingExtractorGUI:
         try:
             spk_val = self.speakers_var.get()
             num_speakers = int(spk_val) if spk_val != "Auto" else None
+            summary_lang = "zh" if self.summary_lang_var.get() == "Chinese" else "en"
             results = run_pipeline(
                 audio_path=audio_path,
                 session_info=session_info,
@@ -263,6 +275,7 @@ class MeetingExtractorGUI:
                 use_diarization=self.var_diarize.get(),
                 num_speakers=num_speakers,
                 use_translation=self.var_translate.get(),
+                summary_language=summary_lang,
                 progress_cb=cb,
             )
             self.root.after(0, lambda r=results: self._show_results(r))

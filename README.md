@@ -11,8 +11,8 @@ Powered by [OpenAI Whisper](https://github.com/openai/whisper), [pyannote.audio]
 - **Screen + audio recording:** captures what plays through your speakers (WASAPI loopback), works with any app including Zoom, Teams, and browser-based meetings. Optional screen video capture.
 - **Transcription:** local, offline transcription via OpenAI Whisper. No audio ever leaves your machine.
 - **Speaker identification:** labels each line by who is speaking (Speaker 1, Speaker 2, etc.) via pyannote.audio. Optional (requires a free HuggingFace token).
-- **Translation:** auto-detects English or Mandarin Chinese and translates to the other language. Both the original and translated transcripts are saved.
-- **AI summary:** generates a structured key-points outline, a full prose summary, and a list of action items / decisions. Uses Claude or Qwen (DashScope) if an API key is configured, otherwise falls back to simple extractive summarization.
+- **Translation:** auto-detects English or Mandarin Chinese and translates to the other language. Both the original and translated transcripts are saved. If the online translator is rate-limited or unreachable, Chinese → English falls back to Whisper's built-in offline translation, so you still get English.
+- **AI summary:** generates a structured key-points outline, a full prose summary, and a list of action items / decisions — written in the language *you* read (English by default, even for a Mandarin meeting). Uses Claude or Qwen (DashScope) if an API key is configured, otherwise falls back to simple extractive summarization.
 - **Reports:** saves a human-readable `.txt` report and a machine-readable `.json` file to the `outputs/` folder after every session.
 - **Multi-monitor support:** choose which monitor to record from a dropdown in the GUI.
 - **GUI + CLI:** use the desktop app for day-to-day use, or automate with the command line.
@@ -142,6 +142,7 @@ Supported formats: `.wav` `.mp3` `.mp4` `.m4a` `.flac` `.ogg` `.mkv` `.avi` `.we
 | `--no-diarization` | Skip speaker identification |
 | `--no-translate` | Skip translation |
 | `--no-video` | Record audio only, no screen capture |
+| `--summary-language {en,zh}` | Language for the AI summary / key points — the language you read (default: `en`) |
 
 **Examples:**
 
@@ -209,6 +210,10 @@ Your microphone is **not** captured by default. If you want to include your own 
 
 **Translation errors or rate limiting**
 - The app uses Google Translate's free tier. Very long recordings processed simultaneously may hit rate limits. Process files one at a time if this happens.
+- For Chinese → English, if Google Translate is unreachable the app automatically falls back to Whisper's built-in offline translation, so you still get an English transcript (this runs a second Whisper pass, so it is slower).
+
+**The summary or key points come out in the wrong language**
+- The AI summary is written in the language set by `--summary-language` (CLI) or the **Summary in** dropdown (GUI). It defaults to English, so a Mandarin meeting still gives you an English summary. Set it to `zh` / Chinese if you want the summary in Mandarin.
 
 **Whisper is very slow**
 - Switch to a smaller model (`tiny` or `base`) for faster results
