@@ -81,6 +81,7 @@ def run_pipeline(
     num_speakers: int = None,
     use_translation: bool = True,
     summary_language: str = "en",
+    language: str = None,
     progress_cb=None,
 ) -> dict:
     """Transcribe → translate → summarize → report.  Returns result dict.
@@ -88,11 +89,16 @@ def run_pipeline(
     `summary_language` is the language the AI summary / key points are written
     in — i.e. the language *you* read. It defaults to English so a
     Mandarin meeting still yields an English summary you can understand.
+
+    `language` forces the spoken language of the audio (e.g. "zh" for Mandarin).
+    Leave it None to let Whisper auto-detect. Forcing it avoids Whisper
+    mis-detecting the language from the first few seconds of audio.
     """
     if progress_cb is None:
         progress_cb = lambda msg, pct: print(f"[{pct:3d}%] {msg}")
 
     model = model or config.WHISPER_MODEL
+    forced_lang = _normalize_lang(language) if language else None
 
     # 1. Transcribe
     transcriber = Transcriber(
@@ -100,21 +106,27 @@ def run_pipeline(
         hf_token=config.HF_TOKEN,
         progress_cb=progress_cb,
     )
+    # Whisper wants a short code like "zh" / "en", not "zh-CN".
+    whisper_lang = "zh" if forced_lang == "zh-CN" else forced_lang
     segments = transcriber.transcribe(
         audio_path,
         use_diarization=use_diarization,
         num_speakers=num_speakers,
+        language=whisper_lang,
     )
 
     translator = Translator(progress_cb=progress_cb)
 
-    # Source language: trust Whisper's own detection first (it analyzed the
-    # audio directly), and only fall back to text-based detection when Whisper
-    # was unsure. This is more reliable than re-detecting the transcript.
-    source_lang = _normalize_lang(segments[0].get("language", "")) if segments else ""
-    if source_lang not in ("en", "zh-CN"):
-        full_text = " ".join(s["text"] for s in segments)
-        source_lang = translator.detect_language(full_text)
+    # Source language: if the user forced it, trust that. Otherwise trust
+    # Whisper's own detection first (it analyzed the audio directly), and only
+    # fall back to text-based detection when Whisper was unsure.
+    if forced_lang:
+        source_lang = forced_lang
+    else:
+        source_lang = _normalize_lang(segments[0].get("language", "")) if segments else ""
+        if source_lang not in ("en", "zh-CN"):
+            full_text = " ".join(s["text"] for s in segments)
+            source_lang = translator.detect_language(full_text)
     progress_cb(f"Detected language: {source_lang}", 68)
 
     # 2. Translate
@@ -136,7 +148,9 @@ def run_pipeline(
                     78,
                 )
                 try:
-                    eng_segments = transcriber.translate_to_english(audio_path)
+                    eng_segments = transcriber.translate_to_english(
+                        audio_path, language=whisper_lang
+                    )
                     _fill_english_from_whisper(segments, eng_segments)
                 except Exception as e:
                     progress_cb(f"Whisper translation fallback failed: {e}", 82)
@@ -219,6 +233,7 @@ def _cli_record(args):
         num_speakers=args.speakers,
         use_translation=not args.no_translate,
         summary_language=args.summary_language,
+        language=args.language,
     )
     print(f"\n{Fore.GREEN}Reports saved:{Style.RESET_ALL}")
     for fmt, path in results["output_files"].items():
@@ -248,6 +263,7 @@ def _cli_process(args):
         num_speakers=args.speakers,
         use_translation=not args.no_translate,
         summary_language=args.summary_language,
+        language=args.language,
     )
     print("\nReports saved:")
     for fmt, path in results["output_files"].items():
@@ -283,6 +299,13 @@ def main():
         default="en",
         choices=["en", "zh"],
         help="Language for the AI summary / key points — the language you read (default: en)",
+    )
+    parser.add_argument(
+        "--language",
+        default=None,
+        choices=["en", "zh"],
+        help="Force the spoken language of the audio (e.g. 'zh' for Mandarin). "
+        "Omit to let Whisper auto-detect. Set this when auto-detect picks wrong.",
     )
 
     args = parser.parse_args()

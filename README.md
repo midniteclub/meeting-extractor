@@ -143,6 +143,7 @@ Supported formats: `.wav` `.mp3` `.mp4` `.m4a` `.flac` `.ogg` `.mkv` `.avi` `.we
 | `--no-translate` | Skip translation |
 | `--no-video` | Record audio only, no screen capture |
 | `--summary-language {en,zh}` | Language for the AI summary / key points — the language you read (default: `en`) |
+| `--language {en,zh}` | Force the spoken language of the audio. Omit to auto-detect; set it when Whisper guesses wrong (e.g. a Mandarin meeting detected as English). |
 
 **Examples:**
 
@@ -214,6 +215,10 @@ Your microphone is **not** captured by default. If you want to include your own 
 
 **The summary or key points come out in the wrong language**
 - The AI summary is written in the language set by `--summary-language` (CLI) or the **Summary in** dropdown (GUI). It defaults to English, so a Mandarin meeting still gives you an English summary. Set it to `zh` / Chinese if you want the summary in Mandarin.
+
+**The transcript is gibberish / the wrong language was detected**
+- Whisper guesses the spoken language from the first ~30 seconds. If a meeting opens with silence, music, or small talk in another language, it can lock onto the wrong one and transcribe the whole file incorrectly (e.g. a Mandarin meeting shown as `Detected language: English`).
+- Fix it by forcing the language: add `--language zh` (CLI) or set the **Spoken** dropdown to Chinese (GUI).
 
 **Whisper is very slow**
 - Switch to a smaller model (`tiny` or `base`) for faster results

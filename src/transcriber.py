@@ -40,14 +40,23 @@ class Transcriber:
         audio_path: Path,
         use_diarization: bool = True,
         num_speakers: Optional[int] = None,
+        language: Optional[str] = None,
     ) -> List[Segment]:
         self._ensure_whisper()
-        self.cb("Transcribing audio with Whisper...", 20)
+        if language:
+            self.cb(f"Transcribing audio with Whisper (language: {language})...", 20)
+        else:
+            self.cb("Transcribing audio with Whisper...", 20)
 
+        # When `language` is given, force it. Whisper otherwise guesses from the
+        # first ~30s of audio, which fails when a meeting opens with silence,
+        # music, or a bit of small talk in another language — it then
+        # transcribes the whole file as the wrong language.
         result = self._whisper.transcribe(
             str(audio_path),
             word_timestamps=True,
             verbose=False,
+            language=language or None,
         )
 
         segments: List[Segment] = [
@@ -69,7 +78,9 @@ class Transcriber:
 
         return segments
 
-    def translate_to_english(self, audio_path: Path) -> List[Segment]:
+    def translate_to_english(
+        self, audio_path: Path, language: Optional[str] = None
+    ) -> List[Segment]:
         """Translate the audio directly to English using Whisper's built-in
         translate task.
 
@@ -84,6 +95,7 @@ class Transcriber:
             str(audio_path),
             task="translate",
             verbose=False,
+            language=language or None,
         )
         return [
             {

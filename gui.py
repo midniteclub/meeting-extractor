@@ -83,6 +83,18 @@ class MeetingExtractorGUI:
             side=tk.LEFT, padx=4
         )
 
+        # Spoken language of the audio. "Auto" lets Whisper guess; set it
+        # explicitly when auto-detect picks the wrong language.
+        self.audio_lang_var = tk.StringVar(value="Auto")
+        ttk.Label(opt, text="Spoken:").pack(side=tk.LEFT, padx=(6, 1))
+        ttk.Combobox(
+            opt,
+            textvariable=self.audio_lang_var,
+            values=["Auto", "Chinese", "English"],
+            width=8,
+            state="readonly",
+        ).pack(side=tk.LEFT, padx=(0, 4))
+
         # Language the AI summary / key points are written in (what you read).
         self.summary_lang_var = tk.StringVar(value="English")
         ttk.Label(opt, text="Summary in:").pack(side=tk.LEFT, padx=(6, 1))
@@ -268,6 +280,8 @@ class MeetingExtractorGUI:
             spk_val = self.speakers_var.get()
             num_speakers = int(spk_val) if spk_val != "Auto" else None
             summary_lang = "zh" if self.summary_lang_var.get() == "Chinese" else "en"
+            audio_lang_map = {"Chinese": "zh", "English": "en"}
+            audio_lang = audio_lang_map.get(self.audio_lang_var.get())  # None => Auto
             results = run_pipeline(
                 audio_path=audio_path,
                 session_info=session_info,
@@ -276,6 +290,7 @@ class MeetingExtractorGUI:
                 num_speakers=num_speakers,
                 use_translation=self.var_translate.get(),
                 summary_language=summary_lang,
+                language=audio_lang,
                 progress_cb=cb,
             )
             self.root.after(0, lambda r=results: self._show_results(r))
